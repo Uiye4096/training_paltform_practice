@@ -86,6 +86,78 @@ evaluate.py←  from config import get_args; args = get_args()
 
 ---
 
+## np.array() 接受的输入
+
+| 输入类型 | 例子 |
+|------|------|
+| Python 列表 | `[1, 2, 3]` → 1D 数组 |
+| 嵌套列表 | `[[1,2],[3,4]]` → 2D 数组 |
+| 另一个 numpy 数组 | 复制一份 |
+| list of numpy arrays | 自动堆叠成更高维数组 |
+
+滑动窗口场景：`windows` 是嵌套列表，`np.array(windows)` 直接得到 shape `(num_windows, window_size)` 的二维数组。
+
+---
+
+## numpy mean/std 的 axis 参数
+
+```python
+data = np.array([[1, 2, 3],
+                 [4, 5, 6]])  # shape (2, 3)
+
+data.mean()        # 所有元素均值 → 标量 3.5
+data.mean(axis=0)  # 每列的均值  → shape (3,)  [2.5, 3.5, 4.5]
+data.mean(axis=1)  # 每行的均值  → shape (2,)  [2.0, 5.0]
+```
+
+**项目中的选择：** 振动信号两列（水平/垂直）量纲相同，用 `data.mean()`（全局标量）即可，实现简单。  
+若两列量纲不同，改用 `data.mean(axis=0)` 按列分别归一化。
+
+---
+
+## set_seed：为什么要同时设置五个随机源
+
+深度学习里有五个**互相独立**的随机数生成器，必须全部固定才能保证实验可复现：
+
+```python
+import random, numpy as np, torch
+
+def set_seed(seed):
+    random.seed(seed)                        # Python 内置 random
+    np.random.seed(seed)                     # NumPy 随机数
+    torch.manual_seed(seed)                  # PyTorch CPU
+    torch.cuda.manual_seed(seed)             # 当前 GPU
+    torch.cuda.manual_seed_all(seed)         # 所有 GPU（多卡）
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+```
+
+| 随机源 | 管什么 |
+|------|------|
+| `random` | Python 内置随机操作 |
+| `np.random` | numpy 的 shuffle、choice、randn 等 |
+| `torch.manual_seed` | 权重初始化、dropout（CPU） |
+| `torch.cuda.manual_seed` | 单卡 GPU 随机操作 |
+| `torch.cuda.manual_seed_all` | 多卡 GPU 随机操作 |
+
+---
+
+## cudnn.deterministic 和 cudnn.benchmark
+
+cuDNN 有自动寻优模式：第一次运行时测试多种卷积算法，找最快的那个。
+
+```python
+torch.backends.cudnn.benchmark = False      # 关闭自动寻优（否则结果不可复现）
+torch.backends.cudnn.deterministic = True   # 强制用确定性算法
+```
+
+- `benchmark = True`：速度更快，但结果不可复现
+- `benchmark = False` + `deterministic = True`：牺牲少量速度，换取完全可复现
+
+**两行必须同时写**，否则 benchmark 的寻优会绕过 deterministic 的限制。
+
+---
+
 ## 参考：iTSF 项目的做法
 
 iTSF 是**单入口结构**，argparse 直接写在 `run.py`，通过 `--is_training 0/1` 控制训练/测试，  
