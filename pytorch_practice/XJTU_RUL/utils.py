@@ -96,7 +96,7 @@ import torch
 
 
 
-def loading_bearing_csv(csv_path):
+def load_bearing_csv(csv_path):
     df = pd.read_csv(csv_path)
     return df.values
 
