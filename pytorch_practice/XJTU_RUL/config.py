@@ -80,4 +80,7 @@ def get_args():
     parser.add_argument('--train_bearings', type=str, nargs='+', default=['Bearing1_1', 'Bearing1_2'], help='训练轴承')
     parser.add_argument('--test_bearings', type=str, nargs='+', default=['Bearing1_3'], help='测试轴承')
 
+    parser.add_argument('--seed', type=int, default=42, help='随机种子')
+    parser.add_argument('--device', type=str, default='mps', help='设备')
+
     return parser.parse_args()
