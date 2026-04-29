@@ -85,3 +85,58 @@
 #   # print(out.shape)  # 应该是 torch.Size([8])
 #   pass
 # =============================================================
+
+import torch
+import torch.nn as nn
+import config
+
+args = config.get_args()
+
+class CNNExtractor(nn.Module):
+    def __init__(self, in_channels):
+        super().__init__()
+        # TODO: 实现CNN提取器
+        args = config.get_args()
+        filters = args.cnn_filters
+        kernel_size = args.cnn_kernel
+        
+        layers = []
+        for out_channels in filters:
+            layers.append(nn.Conv1d(in_channels, out_channels, kernel_size, padding=kernel_size//2))
+            layers.append(nn.BatchNorm1d(out_channels))
+            layers.append(nn.ReLU())
+            layers.append(nn.MaxPool1d(2))
+            in_channels = out_channels
+
+        self.net = nn.Sequential(*layers) #需要解包，把layers当中的内容拆开变成独立的元素传入sequential
+
+    def forward(self, x):
+        return self.net(x)
+
+class CNNLSTM(nn.Module):
+    def __init__(self, input_size):
+        super().__init__()
+        self.input_size = input_size
+        self.cnn = CNNExtractor(input_size)
+        self.lstm = nn.LSTM(args.cnn_filters[-1], args.lstm_hidden, args.lstm_layers, batch_first=True)
+        self.dropout = nn.Dropout(args.dropout)
+        self.fc = nn.Linear(args.lstm_hidden, 1)
+        
+    def forward(self, x):
+        x = self.cnn(x) # (batch, channels, seq_len)
+        x = x.permute(0, 2, 1) # (batch, seq_len, channels)
+        x, _ = self.lstm(x) # 丢弃隐藏状态
+        x = self.dropout(x)
+        x = x[:, -1, :] # 取最后一个时间步
+        x = self.fc(x)
+        return x
+
+
+
+
+
+
+
+
+
+
